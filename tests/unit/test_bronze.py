@@ -51,7 +51,7 @@ class TestAuditColumns:
 class TestIngestClaimsCSV:
     """Ingest from real CSV files written to tmp_path."""
 
-    def test_ingest_reads_all_rows(self, spark, tmp_path):
+    def test_ingest_reads_all_rows(self, spark, tmp_path, spark_path):
         csv = tmp_path / "claims.csv"
         csv.write_text(
             "claim_id,member_id,provider_id,claim_date,claim_amount,status,denial_code\n"
@@ -59,16 +59,16 @@ class TestIngestClaimsCSV:
             "C002,M001,P002,2024-01-20,1500.00,DENIED,D01\n"
         )
 
-        df = ingest_claims(spark, str(csv), source_format="csv")
+        df = ingest_claims(spark, spark_path(csv), source_format="csv")
         assert df.count() == 2
 
-    def test_ingest_applies_bronze_schema(self, spark, tmp_path):
+    def test_ingest_applies_bronze_schema(self, spark, tmp_path, spark_path):
         csv = tmp_path / "claims.csv"
         csv.write_text(
             "claim_id,member_id,provider_id,claim_date,claim_amount,status,denial_code\n"
             "C001,M001,P001,2024-01-15,250.00,PAID,\n"
         )
-        df = ingest_claims(spark, str(csv))
+        df = ingest_claims(spark, spark_path(csv))
 
         # All declared columns of CLAIMS_RAW_SCHEMA must be StringType in bronze.
         for f in CLAIMS_RAW_SCHEMA.fields:
@@ -76,18 +76,18 @@ class TestIngestClaimsCSV:
             assert isinstance(field.dataType, StringType), \
                 f"Column {f.name} should be StringType in bronze, got {field.dataType}"
 
-    def test_ingest_attaches_audit_columns(self, spark, tmp_path):
+    def test_ingest_attaches_audit_columns(self, spark, tmp_path, spark_path):
         csv = tmp_path / "claims.csv"
         csv.write_text("claim_id,member_id,provider_id,claim_date,claim_amount,status,denial_code\n"
                        "C001,M001,P001,2024-01-15,250.00,PAID,\n")
-        df = ingest_claims(spark, str(csv))
+        df = ingest_claims(spark, spark_path(csv))
         assert "_ingestion_timestamp" in df.columns
         assert "_source_file" in df.columns
 
-    def test_ingest_empty_file_returns_zero_rows(self, spark, tmp_path):
+    def test_ingest_empty_file_returns_zero_rows(self, spark, tmp_path, spark_path):
         csv = tmp_path / "empty.csv"
         csv.write_text("claim_id,member_id,provider_id,claim_date,claim_amount,status,denial_code\n")
-        df = ingest_claims(spark, str(csv))
+        df = ingest_claims(spark, spark_path(csv))
         assert df.count() == 0
         # But schema is still correct
         assert "_ingestion_timestamp" in df.columns
@@ -95,12 +95,12 @@ class TestIngestClaimsCSV:
 
 class TestIngestMembers:
 
-    def test_ingest_members_csv(self, spark, tmp_path):
+    def test_ingest_members_csv(self, spark, tmp_path, spark_path):
         csv = tmp_path / "members.csv"
         csv.write_text(
             "member_id,member_name,plan_type,enrollment_date,state\n"
             "M001,Alice,GOLD,2022-01-01,NY\n"
         )
-        df = ingest_members(spark, str(csv))
+        df = ingest_members(spark, spark_path(csv))
         assert df.count() == 1
         assert df.first()["member_name"] == "Alice"

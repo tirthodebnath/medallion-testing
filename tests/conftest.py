@@ -74,8 +74,13 @@ def spark() -> SparkSession:
     """
     if _on_databricks():
         spark = SparkSession.builder.getOrCreate()
+        # Databricks has ANSI mode ON by default, which makes to_date throw
+        # on bad input instead of returning null. Turn it off so tests behave
+        # identically to local Spark. Production pipelines that need ANSI
+        # strictness should use try_to_date explicitly.
+        spark.conf.set("spark.sql.ansi.enabled", "false")
         yield spark
-        # Don't stop — the session is owned by the notebook, not by us.
+        spark.conf.set("spark.sql.ansi.enabled", "true")  # restore
     else:
         spark = (
             SparkSession.builder
@@ -238,3 +243,23 @@ def tmp_warehouse(tmp_path: Path) -> Path:
 def golden_data_dir() -> Path:
     """Filesystem path to the regression golden datasets."""
     return Path(__file__).parent / "regression" / "golden_data"
+
+
+def _spark_path(path) -> str:
+    """
+    Make a local file path readable by Spark on any platform.
+
+    On Databricks, bare paths like /tmp/foo.csv get routed to DBFS (which
+    is disabled on Free Edition). Prefixing with file:// forces the local
+    filesystem.
+    """
+    s = str(path)
+    if _on_databricks() and not s.startswith("file:"):
+        return f"file://{s}"
+    return s
+
+
+@pytest.fixture
+def spark_path():
+    """Fixture exposing the spark_path helper to tests."""
+    return _spark_path
