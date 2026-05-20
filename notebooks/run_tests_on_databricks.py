@@ -42,6 +42,10 @@
 import os
 import sys
 
+# Workspace files are read-only — Python cannot create __pycache__ dirs.
+sys.dont_write_bytecode = True
+os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
+
 NOTEBOOK_PATH = (
     dbutils.notebook.entry_point.getDbutils()
            .notebook().getContext().notebookPath().get()
@@ -76,6 +80,7 @@ exit_code = pytest.main([
     "-m", "not integration",
     "-ra",
     "--tb=short",
+    "--override-ini=cache_dir=/tmp/.pytest_cache",
 ])
 
 print(f"\npytest exit code: {exit_code}")
