@@ -7,8 +7,8 @@
 # MAGIC
 # MAGIC **Before running:** upload `claims.csv` and `members.csv` to:
 # MAGIC ```
-# MAGIC /Volumes/workspace/tirtho_db/tirtho_uploaded_files/claims/
-# MAGIC /Volumes/workspace/tirtho_db/tirtho_uploaded_files/members/
+# MAGIC /Volumes/workspace/tirtho_db/tirtho_uploaded_files/claims.csv
+# MAGIC /Volumes/workspace/tirtho_db/tirtho_uploaded_files/members.csv
 # MAGIC ```
 
 # COMMAND ----------
@@ -30,8 +30,8 @@ CATALOG = "workspace"
 SCHEMA  = "tirtho_db"
 VOLUME  = "tirtho_uploaded_files"
 
-CLAIMS_LANDING  = f"/Volumes/{CATALOG}/{SCHEMA}/{VOLUME}/claims/"
-MEMBERS_LANDING = f"/Volumes/{CATALOG}/{SCHEMA}/{VOLUME}/members/"
+CLAIMS_LANDING  = f"/Volumes/{CATALOG}/{SCHEMA}/{VOLUME}/claims.csv"
+MEMBERS_LANDING = f"/Volumes/{CATALOG}/{SCHEMA}/{VOLUME}/members.csv"
 
 BRONZE_CLAIMS_TABLE  = f"{CATALOG}.{SCHEMA}.bronze_claims"
 BRONZE_MEMBERS_TABLE = f"{CATALOG}.{SCHEMA}.bronze_members"

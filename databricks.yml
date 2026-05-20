@@ -44,8 +44,7 @@ resources:
     #
     # Before running:
     #   1. Upload claims.csv and members.csv to:
-    #      /Volumes/workspace/tirtho_db/tirtho_uploaded_files/claims/
-    #      /Volumes/workspace/tirtho_db/tirtho_uploaded_files/members/
+    #      /Volumes/workspace/tirtho_db/tirtho_uploaded_files/
     #   2. databricks bundle deploy
     #   3. databricks bundle run medallion_pipeline_job
     # -------------------------------------------------------------------
