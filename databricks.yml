@@ -23,9 +23,7 @@ targets:
     mode: development
     default: true
     workspace:
-      # TODO: replace with your workspace URL, e.g.
-      # https://adb-1234567890123456.7.azuredatabricks.net
-      host: https://<your-workspace>.azuredatabricks.net
+      host: https://dbc-252798a7-44b9.cloud.databricks.com
 
 resources:
   jobs:
