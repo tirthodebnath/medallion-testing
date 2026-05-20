@@ -73,15 +73,15 @@ stages:
             displayName: 'Install databricks CLI'
 
           - script: |
-              databricks bundle validate --target dev
-              databricks bundle deploy --target dev
+              databricks bundle validate
+              databricks bundle deploy
             env:
               DATABRICKS_HOST:  $(DATABRICKS_HOST)
               DATABRICKS_TOKEN: $(DATABRICKS_TOKEN)
-            displayName: 'Deploy bundle to dev'
+            displayName: 'Deploy bundle'
 
           - script: |
-              databricks bundle run medallion_test_job --target dev
+              databricks bundle run medallion_test_job
             env:
               DATABRICKS_HOST:  $(DATABRICKS_HOST)
               DATABRICKS_TOKEN: $(DATABRICKS_TOKEN)

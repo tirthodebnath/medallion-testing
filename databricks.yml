@@ -1,12 +1,12 @@
-# Databricks Asset Bundle (DAB) configuration.
+# Databricks Asset Bundle (DAB) configuration — single workspace.
 #
 # Two jobs are defined:
 #   1. medallion_pipeline_job — runs the end-to-end pipeline.
-#   2. medallion_test_job     — runs pytest as a job (PR / nightly use).
+#   2. medallion_test_job     — runs pytest as a job.
 #
 # Deploy:
-#   databricks bundle deploy --target dev
-#   databricks bundle run medallion_test_job --target dev
+#   databricks bundle deploy
+#   databricks bundle run medallion_test_job
 
 bundle:
   name: medallion-testing
@@ -14,25 +14,18 @@ bundle:
 variables:
   catalog:
     description: Unity Catalog target catalog
-    default: dev_catalog
-  cluster_id:
-    description: Existing cluster ID used by both jobs (override per-env)
-    default: ""
+    default: main          # change to your actual catalog
 
 targets:
-  dev:
+  # Single environment (one workspace). `default: true` means you can omit
+  # `--target` on the CLI.
+  default:
     mode: development
     default: true
     workspace:
-      host: https://adb-XXXXXXXXXXXXX.azuredatabricks.net
-    variables:
-      catalog: dev_catalog
-  prod:
-    mode: production
-    workspace:
-      host: https://adb-YYYYYYYYYYYYY.azuredatabricks.net
-    variables:
-      catalog: prod_catalog
+      # TODO: replace with your workspace URL, e.g.
+      # https://adb-1234567890123456.7.azuredatabricks.net
+      host: https://<your-workspace>.azuredatabricks.net
 
 resources:
   jobs:
@@ -41,7 +34,7 @@ resources:
     # 1. The actual pipeline job
     # -------------------------------------------------------------------
     medallion_pipeline_job:
-      name: medallion_pipeline_${bundle.target}
+      name: medallion_pipeline
       tasks:
         - task_key: run_pipeline
           job_cluster_key: pipeline_cluster
@@ -64,10 +57,10 @@ resources:
             data_security_mode: SINGLE_USER
 
     # -------------------------------------------------------------------
-    # 2. The pytest job — invoked on every PR + nightly
+    # 2. The pytest job
     # -------------------------------------------------------------------
     medallion_test_job:
-      name: medallion_tests_${bundle.target}
+      name: medallion_tests
       tasks:
         - task_key: run_pytest
           job_cluster_key: test_cluster

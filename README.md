@@ -18,8 +18,8 @@ pytest tests -m "not integration"     # 59 tests, ~30s on a laptop
 pytest tests                          # full suite incl. Delta integration
 
 # Databricks
-databricks bundle deploy --target dev
-databricks bundle run medallion_test_job --target dev
+databricks bundle deploy
+databricks bundle run medallion_test_job
 ```
 
 ---
@@ -163,12 +163,16 @@ moves that keep this suite cheap to run and easy to extend:
 ## CI / CD
 
 `azure-pipelines.yml` runs `pytest -m "not integration"` on every PR on
-the build agent, then on merge to `main` deploys the DAB to dev and
-triggers `medallion_test_job` on Databricks (which runs the full suite,
+the build agent, then on merge to `main` deploys the DAB to your workspace
+and triggers `medallion_test_job` on Databricks (which runs the full suite,
 integration included, against real Delta).
 
 Adapt to GitHub Actions / GitLab CI by replacing the deploy stage; the
 pytest invocation is the same.
+
+> Before the bundle deploys, replace the `host:` placeholder in
+> `databricks.yml` with your real workspace URL (e.g.
+> `https://adb-1234567890123456.7.azuredatabricks.net`).
 
 ---
 
