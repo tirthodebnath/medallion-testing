@@ -14,62 +14,52 @@
 
 # COMMAND ----------
 
-# MAGIC %md
-# MAGIC ## 1. Install test dependencies
-# MAGIC
-# MAGIC `%pip install` works on serverless via Databricks' internal PyPI proxy,
-# MAGIC so this works even though Free Edition restricts general outbound
-# MAGIC internet access.
-
-# COMMAND ----------
-
 # MAGIC %pip install pytest==8.3.3 chispa==0.10.1
-# MAGIC dbutils.library.restartPython()
+
+# COMMAND ----------
+
+dbutils.library.restartPython()
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 2. Locate the repo
+# MAGIC ## Copy project to a writable location
 # MAGIC
-# MAGIC When this notebook is opened via a Databricks Git folder, the repo root
-# MAGIC is one level above `notebooks/`. The block below derives that path,
-# MAGIC adds `src/` to `sys.path` so the package imports work, and changes
-# MAGIC the working directory to the repo root so pytest's discovery picks
-# MAGIC up `pytest.ini` and the `tests/` tree.
+# MAGIC Workspace Git folders are mounted read-only. Python needs to write
+# MAGIC `__pycache__/` when importing, and pytest writes `.pytest_cache/`.
+# MAGIC Copying the project to `/tmp/` gives us a normal writable filesystem
+# MAGIC where everything works without workarounds.
 
 # COMMAND ----------
 
-import os
-import sys
-
-# Workspace files are read-only — Python cannot create __pycache__ dirs.
-sys.dont_write_bytecode = True
-os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
+import os, sys, shutil
 
 NOTEBOOK_PATH = (
     dbutils.notebook.entry_point.getDbutils()
            .notebook().getContext().notebookPath().get()
 )
-# /Users/<user>/medallion-testing/notebooks/run_tests_on_databricks
-#  ->  /Workspace/Users/<user>/medallion-testing
 REPO_PATH = "/Workspace" + os.path.dirname(NOTEBOOK_PATH).rsplit("/notebooks", 1)[0]
 
-sys.path.insert(0, REPO_PATH)
-os.chdir(REPO_PATH)
+WORK_DIR = "/tmp/medallion-testing"
+if os.path.exists(WORK_DIR):
+    shutil.rmtree(WORK_DIR)
+shutil.copytree(REPO_PATH, WORK_DIR)
 
-print(f"REPO_PATH    = {REPO_PATH}")
-print(f"cwd          = {os.getcwd()}")
-print(f"sys.path[0]  = {sys.path[0]}")
+sys.path.insert(0, WORK_DIR)
+os.chdir(WORK_DIR)
+
+print(f"Source:   {REPO_PATH}")
+print(f"Work dir: {WORK_DIR}")
+print(f"cwd:      {os.getcwd()}")
+
+# Sanity check: src package is importable
+import src.common.schemas
+print(f"src found: {src.common.schemas.__file__}")
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 3. Run pytest
-# MAGIC
-# MAGIC On Free Edition serverless we skip the integration tests because they
-# MAGIC need to write Delta files to a path serverless executors can persist
-# MAGIC to — Free Edition's storage surface is limited. Unit, regression, and
-# MAGIC data quality tests run fine.
+# MAGIC ## Run pytest
 
 # COMMAND ----------
 
@@ -80,7 +70,6 @@ exit_code = pytest.main([
     "-m", "not integration",
     "-ra",
     "--tb=short",
-    "--override-ini=cache_dir=/tmp/.pytest_cache",
 ])
 
 print(f"\npytest exit code: {exit_code}")
@@ -88,11 +77,7 @@ print(f"\npytest exit code: {exit_code}")
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 4. Fail the job if any test failed
-# MAGIC
-# MAGIC `exit_code` follows pytest conventions: 0 = all passed, non-zero =
-# MAGIC failures. Raising here propagates to the Databricks Job UI as a
-# MAGIC failed task.
+# MAGIC ## Fail the job if any test failed
 
 # COMMAND ----------
 
