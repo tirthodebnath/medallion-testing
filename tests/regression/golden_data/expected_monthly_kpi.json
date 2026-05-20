@@ -1,0 +1,7 @@
+[
+  {"claim_year_month": "2024-01", "status": "DENIED", "claim_count": 1, "total_claim_amount": "1500.00",  "avg_claim_amount": "1500.0000"},
+  {"claim_year_month": "2024-01", "status": "PAID",   "claim_count": 1, "total_claim_amount": "250.00",   "avg_claim_amount": "250.0000"},
+  {"claim_year_month": "2024-02", "status": "PAID",   "claim_count": 3, "total_claim_amount": "12375.50", "avg_claim_amount": "4125.1667"},
+  {"claim_year_month": "2024-03", "status": "DENIED", "claim_count": 1, "total_claim_amount": "800.00",   "avg_claim_amount": "800.0000"},
+  {"claim_year_month": "2024-03", "status": "PAID",   "claim_count": 2, "total_claim_amount": "450.00",   "avg_claim_amount": "225.0000"}
+]

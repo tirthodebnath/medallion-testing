@@ -1,0 +1,5 @@
+[
+  {"member_id": "M001", "member_name": "Alice",   "plan_type": "GOLD",   "enrollment_date": "2022-01-01", "state": "NY"},
+  {"member_id": "M002", "member_name": "Bob",     "plan_type": "SILVER", "enrollment_date": "2023-06-15", "state": "CA"},
+  {"member_id": "M003", "member_name": "Charlie", "plan_type": "BRONZE", "enrollment_date": "2024-01-01", "state": "TX"}
+]

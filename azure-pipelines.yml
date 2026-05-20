@@ -1,0 +1,88 @@
+# Azure DevOps pipeline: run unit + regression + DQ tests on every PR,
+# then deploy a DAB to dev on merge to main.
+#
+# Adjust the service-connection names / secrets to match your org.
+
+trigger:
+  branches:
+    include: [main]
+pr:
+  branches:
+    include: [main]
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  pythonVersion: '3.11'
+
+stages:
+
+  # ------------------------------------------------------------------
+  # 1. Test stage — fast PR feedback (unit + regression + DQ on the agent)
+  # ------------------------------------------------------------------
+  - stage: Test
+    displayName: 'Run pytest on the build agent'
+    jobs:
+      - job: pytest
+        steps:
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: $(pythonVersion)
+
+          - script: |
+              python -m pip install --upgrade pip
+              pip install -r requirements-dev.txt
+            displayName: 'Install dependencies'
+
+          - script: |
+              # Skip @pytest.mark.integration on the agent if Delta isn't
+              # set up there; run it inside the Databricks-test-job stage below.
+              pytest tests/unit tests/regression tests/data_quality \
+                --junitxml=test-results.xml \
+                --cov=src --cov-report=xml \
+                -ra --tb=short
+            displayName: 'pytest (unit + regression + DQ)'
+
+          - task: PublishTestResults@2
+            condition: succeededOrFailed()
+            inputs:
+              testResultsFiles: 'test-results.xml'
+              testRunTitle: 'Medallion pytest'
+
+          - task: PublishCodeCoverageResults@2
+            inputs:
+              summaryFileLocation: 'coverage.xml'
+
+  # ------------------------------------------------------------------
+  # 2. Databricks deploy + integration test stage (main branch only)
+  # ------------------------------------------------------------------
+  - stage: DeployAndIntegrationTest
+    displayName: 'Deploy DAB and run tests on Databricks'
+    dependsOn: Test
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    jobs:
+      - job: deploy
+        steps:
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: $(pythonVersion)
+
+          - script: |
+              curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
+            displayName: 'Install databricks CLI'
+
+          - script: |
+              databricks bundle validate --target dev
+              databricks bundle deploy --target dev
+            env:
+              DATABRICKS_HOST:  $(DATABRICKS_HOST)
+              DATABRICKS_TOKEN: $(DATABRICKS_TOKEN)
+            displayName: 'Deploy bundle to dev'
+
+          - script: |
+              databricks bundle run medallion_test_job --target dev
+            env:
+              DATABRICKS_HOST:  $(DATABRICKS_HOST)
+              DATABRICKS_TOKEN: $(DATABRICKS_TOKEN)
+            displayName: 'Run pytest job on Databricks'

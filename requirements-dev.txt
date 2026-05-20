@@ -1,0 +1,6 @@
+-r requirements.txt
+
+pytest==8.3.3
+chispa==0.10.1
+pytest-cov==5.0.0
+pytest-html==4.1.1
