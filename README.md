@@ -17,7 +17,11 @@ pip install -r requirements-dev.txt
 pytest tests -m "not integration"     # 59 tests, ~30s on a laptop
 pytest tests                          # full suite incl. Delta integration
 
-# Databricks
+# Databricks Free Edition (serverless)
+# Easiest path: open notebooks/run_tests_on_databricks.py in your Git
+# folder, click Connect → Serverless, Run All.
+
+# Or via the bundle:
 databricks bundle deploy
 databricks bundle run medallion_test_job
 ```
@@ -117,11 +121,52 @@ on first use. First run takes ~30 s extra.
 pytest tests/integration
 ```
 
-### On a Databricks cluster
+### On Databricks (Free Edition / serverless)
 
-Open `notebooks/run_tests_on_databricks.py` from your Repo, attach to a
-cluster, and run all cells. Or schedule it as a job — the deployed
-`medallion_test_job` (see `databricks.yml`) does exactly this.
+Free Edition is serverless-only — there are no classic clusters to pick
+node types for. The bundle and notebook are already configured for this.
+
+**Interactive run** (the simplest):
+
+1. In your Databricks workspace, the Git folder you cloned contains
+   `notebooks/run_tests_on_databricks.py`. Open it.
+2. Top right → **Connect** → **Serverless**.
+3. **Run all** cells. The notebook does:
+   - `%pip install pytest chispa`
+   - locates the repo root from the notebook path
+   - runs `pytest tests -m "not integration"` (59 tests)
+   - asserts exit code 0
+
+**As a job** (so it shows up in Workflows / can be scheduled):
+
+```bash
+databricks bundle deploy
+databricks bundle run medallion_test_job
+```
+
+This creates a Databricks Job called `medallion_tests` whose single task
+runs the notebook above on serverless. The bundle uses the workspace URL
+already filled in (`dbc-252798a7-44b9.cloud.databricks.com`).
+
+> Free Edition skips integration tests on Databricks. Those write Delta
+> files to a temporary path which serverless can't persist between
+> executors. Run `pytest tests/integration` locally for full Delta
+> coverage; the suite on Databricks covers unit + regression + DQ (59 of 62).
+
+### Why the pipeline job is commented out
+
+`databricks.yml` includes a `medallion_pipeline_job` definition that's
+currently commented out. It needs two things this repo doesn't ship yet:
+
+1. **A built Python wheel** (`medallion_testing-0.1.0-py3-none-any.whl`).
+   Add a `pyproject.toml` / `setup.py` and run `python -m build`.
+2. **Unity Catalog volumes with landed data**:
+   - `/Volumes/<catalog>/landing/claims/`
+   - `/Volumes/<catalog>/landing/members/`
+
+Uncomment the block when both are in place. The job is already written
+in serverless syntax (using `environment_key` and `environments`) so it
+works on Free Edition once the wheel and volumes exist.
 
 ---
 
@@ -162,17 +207,13 @@ moves that keep this suite cheap to run and easy to extend:
 
 ## CI / CD
 
-`azure-pipelines.yml` runs `pytest -m "not integration"` on every PR on
-the build agent, then on merge to `main` deploys the DAB to your workspace
-and triggers `medallion_test_job` on Databricks (which runs the full suite,
-integration included, against real Delta).
+`azure-pipelines.yml` is included as a reference template — it runs
+`pytest -m "not integration"` on every PR on the build agent, then on
+merge to `main` deploys the DAB and runs the test job on Databricks.
 
-Adapt to GitHub Actions / GitLab CI by replacing the deploy stage; the
-pytest invocation is the same.
-
-> Before the bundle deploys, replace the `host:` placeholder in
-> `databricks.yml` with your real workspace URL (e.g.
-> `https://adb-1234567890123456.7.azuredatabricks.net`).
+Free Edition doesn't include account-level API access and isn't intended
+for commercial / scheduled production CI/CD, so the CI stage is mostly
+illustrative on this account. The pytest-on-agent stage works anywhere.
 
 ---
 
