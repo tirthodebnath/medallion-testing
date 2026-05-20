@@ -1,9 +1,5 @@
 # Databricks Asset Bundle (DAB) configuration for Databricks Free Edition.
 #
-# Free Edition is serverless-only — no classic clusters, no node_type_id,
-# no num_workers. Tasks below omit cluster configuration entirely, which
-# tells the Jobs API to run them on serverless compute.
-#
 # Deploy:
 #   databricks bundle deploy
 #   databricks bundle run medallion_test_job
@@ -13,8 +9,14 @@ bundle:
 
 variables:
   catalog:
-    description: Unity Catalog target catalog (Free Edition default is 'workspace')
+    description: Unity Catalog target catalog
     default: workspace
+  schema:
+    description: Unity Catalog target schema
+    default: tirtho_db
+  volume:
+    description: Volume for raw landing data
+    default: tirtho_uploaded_files
 
 targets:
   default:
@@ -28,8 +30,6 @@ resources:
 
     # -------------------------------------------------------------------
     # Pytest job — runs the test suite on serverless compute.
-    # The notebook installs pytest/chispa via %pip, so no task-level
-    # libraries are required here.
     # -------------------------------------------------------------------
     medallion_test_job:
       name: medallion_tests
@@ -39,32 +39,19 @@ resources:
             notebook_path: ../notebooks/run_tests_on_databricks
 
     # -------------------------------------------------------------------
-    # Pipeline job — TEMPLATE for when you have real data and a wheel build.
-    # Currently commented out because it needs two things that don't exist
-    # in this repo on Free Edition:
-    #   1. medallion_testing-0.1.0-py3-none-any.whl
-    #      Add a setup.py / pyproject.toml and `python -m build` to produce it.
-    #   2. Unity Catalog volumes with landed CSV/JSON data:
-    #      /Volumes/<catalog>/landing/claims/
-    #      /Volumes/<catalog>/landing/members/
-    # Uncomment once both are in place.
+    # Pipeline job — reads raw CSVs from the Volume, runs the full
+    # Bronze -> Silver -> Gold pipeline, writes output to Delta tables.
+    #
+    # Before running:
+    #   1. Upload claims.csv and members.csv to:
+    #      /Volumes/workspace/tirtho_db/tirtho_uploaded_files/claims/
+    #      /Volumes/workspace/tirtho_db/tirtho_uploaded_files/members/
+    #   2. databricks bundle deploy
+    #   3. databricks bundle run medallion_pipeline_job
     # -------------------------------------------------------------------
-    # medallion_pipeline_job:
-    #   name: medallion_pipeline
-    #   tasks:
-    #     - task_key: run_pipeline
-    #       python_wheel_task:
-    #         package_name: medallion_testing
-    #         entry_point: pipeline_main
-    #         parameters:
-    #           - "--claims-path"
-    #           - "/Volumes/${var.catalog}/landing/claims/"
-    #           - "--members-path"
-    #           - "/Volumes/${var.catalog}/landing/members/"
-    #       environment_key: pipeline_env
-    #   environments:
-    #     - environment_key: pipeline_env
-    #       spec:
-    #         client: "1"
-    #         dependencies:
-    #           - ../dist/medallion_testing-0.1.0-py3-none-any.whl
+    medallion_pipeline_job:
+      name: medallion_pipeline
+      tasks:
+        - task_key: run_pipeline
+          notebook_task:
+            notebook_path: ../notebooks/run_pipeline

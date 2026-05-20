@@ -1,0 +1,4 @@
+member_id,member_name,plan_type,enrollment_date,state
+M001,Alice,GOLD,2022-01-01,NY
+M002,Bob,SILVER,2023-06-15,CA
+M003,Charlie,BRONZE,2024-01-01,TX
