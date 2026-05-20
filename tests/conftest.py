@@ -53,24 +53,42 @@ _BRONZE_MEMBERS_WITH_AUDIT_SCHEMA = StructType([
 ])
 
 
+import os
+
+
+def _on_databricks() -> bool:
+    """True when running inside a Databricks notebook / job."""
+    return "DATABRICKS_RUNTIME_VERSION" in os.environ
+
+
 # ---------------------------------------------------------------------------
 # SparkSession (plain — no Delta)
 # ---------------------------------------------------------------------------
 @pytest.fixture(scope="session")
 def spark() -> SparkSession:
-    """Session-scoped local SparkSession (plain, no Delta extensions)."""
-    spark = (
-        SparkSession.builder
-        .appName("medallion-tests")
-        .master("local[2]")
-        .config("spark.sql.shuffle.partitions", "4")
-        .config("spark.sql.session.timeZone", "UTC")
-        .config("spark.ui.enabled", "false")
-        .getOrCreate()
-    )
-    spark.sparkContext.setLogLevel("ERROR")
-    yield spark
-    spark.stop()
+    """
+    Session-scoped SparkSession.
+
+    On Databricks: returns the existing Spark Connect session (serverless).
+    Locally:       spins up a standalone local[2] session for pytest.
+    """
+    if _on_databricks():
+        spark = SparkSession.builder.getOrCreate()
+        yield spark
+        # Don't stop — the session is owned by the notebook, not by us.
+    else:
+        spark = (
+            SparkSession.builder
+            .appName("medallion-tests")
+            .master("local[2]")
+            .config("spark.sql.shuffle.partitions", "4")
+            .config("spark.sql.session.timeZone", "UTC")
+            .config("spark.ui.enabled", "false")
+            .getOrCreate()
+        )
+        spark.sparkContext.setLogLevel("ERROR")
+        yield spark
+        spark.stop()
 
 
 @pytest.fixture(scope="session")
@@ -78,9 +96,14 @@ def spark_delta() -> SparkSession:
     """
     Spark session with Delta Lake enabled. Used by integration tests.
 
-    Uses `configure_spark_with_delta_pip` so the right Delta JARs are
-    resolved automatically. Skips cleanly if Delta isn't installed.
+    On Databricks, Delta is built into the runtime — we just return the
+    existing session. Locally, uses `configure_spark_with_delta_pip` to
+    pull the right JARs from Maven.
     """
+    if _on_databricks():
+        yield SparkSession.builder.getOrCreate()
+        return
+
     try:
         from delta import configure_spark_with_delta_pip
     except ImportError:
