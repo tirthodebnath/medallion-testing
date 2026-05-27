@@ -70,6 +70,8 @@ exit_code = pytest.main([
     "-m", "not integration",
     "-ra",
     "--tb=short",
+    "--override-ini=cache_dir=/tmp/.pytest_cache",
+    "--basetemp=/tmp/pytest-temp",
 ])
 
 print(f"\npytest exit code: {exit_code}")
