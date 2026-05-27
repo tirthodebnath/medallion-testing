@@ -254,7 +254,7 @@ def _spark_path(path) -> str:
     filesystem.
     """
     s = str(path)
-    if _on_databricks() and not s.startswith("file:"):
+    if _on_databricks() and not s.startswith("file:") and not s.startswith("/Volumes"):
         return f"file://{s}"
     return s
 
@@ -263,3 +263,26 @@ def _spark_path(path) -> str:
 def spark_path():
     """Fixture exposing the spark_path helper to tests."""
     return _spark_path
+
+
+@pytest.fixture
+def test_tmp_dir(tmp_path: Path):
+    """
+    A writable temp directory that Spark can also read from.
+
+    Locally: uses pytest's tmp_path (/tmp/pytest-...) — fast, auto-cleaned.
+    On Databricks: creates a UUID-named folder inside the Volume so Spark
+    serverless can read from it. Cleaned up after the test.
+    """
+    if not _on_databricks():
+        yield tmp_path
+        return
+
+    import uuid
+    vol = Path("/Volumes/workspace/tirtho_db/tirtho_uploaded_files")
+    run_dir = vol / f"_test_tmp_{uuid.uuid4().hex[:8]}"
+    run_dir.mkdir(parents=True, exist_ok=True)
+    yield run_dir
+    # Cleanup
+    import shutil
+    shutil.rmtree(str(run_dir), ignore_errors=True)
